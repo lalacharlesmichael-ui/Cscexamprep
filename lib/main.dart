@@ -10,6 +10,9 @@ const supabaseUrl = 'https://txxdmukggvahnfrcktfk.supabase.co';
 const supabaseAnonKey =
     'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR4eGRtdWtnZ3ZhaG5mcmNrdGZrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE0OTkzNjQsImV4cCI6MjA5NzA3NTM2NH0.PJj65bbdrZ9KqKwj-ctYIty2aHaMcJ3PETOoRJMvDHI';
 const authEmailDomain = 'users.cscquiz.app';
+const appName = 'SibilPrep';
+const appLogoAsset = 'assets/brand/sibilprep-logo.png';
+const appIconAsset = 'assets/brand/sibilprep-icon.png';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -66,7 +69,7 @@ class CscQuizApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'CSC Quiz Reviewer',
+      title: appName,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       home: const GateScreen(),
@@ -1396,7 +1399,7 @@ class WelcomeScreen extends StatelessWidget {
                             borderRadius: BorderRadius.all(Radius.circular(50)),
                           ),
                           child: const Text(
-                            'CIVIL SERVICE REVIEWER',
+                            'CIVIL SERVICE EXAM PREP',
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w900,
@@ -1406,12 +1409,12 @@ class WelcomeScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 18),
                         Text(
-                          'Play to gain\nyour knowledge.',
+                          'Prepare smarter\nwith SibilPrep.',
                           style: Theme.of(context).textTheme.displayLarge,
                         ),
                         const SizedBox(height: 16),
                         const Text(
-                          'Short, focused quizzes that turn Civil Service exam prep into a daily winning habit.',
+                          'Short, focused quizzes that turn Civil Service exam prep into a steady daily habit.',
                           style: TextStyle(
                             color: AppColors.muted,
                             fontSize: 16,
@@ -1480,12 +1483,12 @@ class WelcomeScreen extends StatelessWidget {
                     _FeaturePill(
                       label: 'Professional',
                       icon: Icons.school_rounded,
-                      color: AppColors.coral,
+                      color: AppColors.blue,
                     ),
                     _FeaturePill(
                       label: 'Sub-Professional',
                       icon: Icons.menu_book_rounded,
-                      color: AppColors.sky,
+                      color: AppColors.gold,
                     ),
                     _FeaturePill(
                       label: 'Progress analytics',
@@ -1862,14 +1865,20 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
               borderRadius: BorderRadius.circular(22),
               border: Border.all(color: AppColors.borderGray),
             ),
-            child: const Row(
+            child: Row(
               children: [
-                _CircleIcon(
-                  icon: Icons.emoji_events_rounded,
-                  color: AppColors.sunshine,
+                Container(
+                  width: 48,
+                  height: 48,
+                  padding: const EdgeInsets.all(4),
+                  decoration: const BoxDecoration(
+                    color: AppColors.primary4,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Image.asset(appIconAsset, fit: BoxFit.contain),
                 ),
-                SizedBox(width: 14),
-                Expanded(
+                const SizedBox(width: 14),
+                const Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -3693,7 +3702,7 @@ class AppScaffold extends StatelessWidget {
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.emoji_events_rounded, size: 20),
+            Image.asset(appIconAsset, width: 26, height: 26),
             const SizedBox(width: 8),
             Text(title),
           ],
@@ -3781,21 +3790,34 @@ class _BrandMark extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final style = Theme.of(
+      context,
+    ).textTheme.headlineMedium?.copyWith(fontSize: 28, letterSpacing: 0);
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          'Quiz',
-          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-            fontSize: 30,
-            letterSpacing: -1.5,
-          ),
+        Image.asset(
+          appIconAsset,
+          height: 44,
+          width: 44,
+          fit: BoxFit.contain,
+          semanticLabel: appName,
         ),
-        const SizedBox(width: 6),
-        const Icon(
-          Icons.emoji_events_rounded,
-          color: AppColors.sunshine,
-          size: 28,
+        const SizedBox(width: 8),
+        RichText(
+          text: TextSpan(
+            style: style,
+            children: const [
+              TextSpan(
+                text: 'Sibil',
+                style: TextStyle(color: AppColors.blueDeep),
+              ),
+              TextSpan(
+                text: 'Prep',
+                style: TextStyle(color: AppColors.gold),
+              ),
+            ],
+          ),
         ),
       ],
     );
@@ -3811,90 +3833,13 @@ class _WelcomeArtwork extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       height: height,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Positioned(
-            left: 16,
-            right: 16,
-            bottom: 18,
-            height: height * .58,
-            child: Container(
-              decoration: BoxDecoration(
-                color: AppColors.paper,
-                borderRadius: BorderRadius.circular(32),
-                border: Border.all(color: AppColors.ink, width: 2),
-                boxShadow: const [
-                  BoxShadow(
-                    color: AppColors.ink,
-                    offset: Offset(8, 8),
-                    blurRadius: 0,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          Positioned(
-            left: 28,
-            bottom: 30,
-            width: 95,
-            height: 80,
-            child: Container(
-              decoration: const BoxDecoration(
-                color: AppColors.sunshine,
-                borderRadius: BorderRadius.all(Radius.circular(20)),
-              ),
-            ),
-          ),
-          Positioned(
-            right: 28,
-            bottom: 30,
-            width: 110,
-            height: 95,
-            child: Container(
-              decoration: const BoxDecoration(
-                color: AppColors.coral,
-                borderRadius: BorderRadius.all(Radius.circular(24)),
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: 38,
-            child: Icon(
-              Icons.groups_2_rounded,
-              size: height * .43,
-              color: AppColors.ink,
-            ),
-          ),
-          Positioned(
-            top: 8,
-            right: 34,
-            child: Transform.rotate(
-              angle: .15,
-              child: const Icon(
-                Icons.emoji_events_rounded,
-                size: 76,
-                color: AppColors.sunshine,
-              ),
-            ),
-          ),
-          const Positioned(
-            top: 70,
-            left: 34,
-            child: _CircleIcon(
-              icon: Icons.lightbulb_rounded,
-              color: AppColors.sky,
-            ),
-          ),
-          const Positioned(
-            top: 112,
-            right: 8,
-            child: _CircleIcon(
-              icon: Icons.auto_awesome_rounded,
-              color: AppColors.mint,
-            ),
-          ),
-        ],
+      child: Center(
+        child: Image.asset(
+          appIconAsset,
+          height: height * .88,
+          fit: BoxFit.contain,
+          semanticLabel: '$appName logo',
+        ),
       ),
     );
   }

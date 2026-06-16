@@ -1,6 +1,6 @@
-# CSC Quiz Reviewer
+# SibilPrep
 
-Flutter Civil Service quiz reviewer backed by Supabase.
+Flutter Civil Service exam preparation quiz app backed by Supabase.
 
 ## Supabase setup
 

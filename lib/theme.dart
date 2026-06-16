@@ -1,44 +1,49 @@
 import 'package:flutter/material.dart';
 
 class AppColors {
-  static const Color ink = Color(0xFF151515);
-  static const Color cream = Color(0xFFF5F0E7);
-  static const Color paper = Color(0xFFFFFCF7);
-  static const Color coral = Color(0xFFF04D3A);
-  static const Color sunshine = Color(0xFFF7C948);
-  static const Color mint = Color(0xFF92C9A9);
-  static const Color sky = Color(0xFF82C5D8);
-  static const Color muted = Color(0xFF706D67);
+  static const Color ink = Color(0xFF08234A);
+  static const Color cream = Color(0xFFF3F7FC);
+  static const Color paper = Color(0xFFFFFFFF);
+  static const Color coral = Color(0xFFE0A11A);
+  static const Color sunshine = Color(0xFFE9AF22);
+  static const Color mint = Color(0xFF4FA8C7);
+  static const Color sky = Color(0xFF0B5EB8);
+  static const Color muted = Color(0xFF5A6A80);
+  static const Color navy = Color(0xFF073B7A);
+  static const Color blue = Color(0xFF0B5EB8);
+  static const Color blueDeep = Color(0xFF06306A);
+  static const Color gold = Color(0xFFE0A11A);
+  static const Color goldSoft = Color(0xFFFFF1C7);
 
   // Existing names are kept so older screens inherit the refreshed palette.
-  static const Color primary1 = ink;
-  static const Color primary2 = coral;
-  static const Color primary3 = sky;
-  static const Color primary4 = Color(0xFFFFE8A8);
+  static const Color primary1 = navy;
+  static const Color primary2 = blue;
+  static const Color primary3 = mint;
+  static const Color primary4 = goldSoft;
   static const Color errorRed = Color(0xFFC93E32);
-  static const Color successGreen = Color(0xFF4F9368);
+  static const Color successGreen = Color(0xFF1F8A5B);
   static const Color white = Color(0xFFFFFFFF);
   static const Color black = ink;
   static const Color darkGray = muted;
   static const Color lightGray = cream;
-  static const Color borderGray = Color(0xFFD8D1C5);
+  static const Color borderGray = Color(0xFFD6E2F0);
 }
 
 class AppTheme {
   static ThemeData get lightTheme {
     const scheme = ColorScheme(
       brightness: Brightness.light,
-      primary: AppColors.ink,
+      primary: AppColors.blue,
       onPrimary: AppColors.white,
-      primaryContainer: AppColors.coral,
+      primaryContainer: AppColors.navy,
       onPrimaryContainer: AppColors.white,
-      secondary: AppColors.coral,
-      onSecondary: AppColors.white,
+      secondary: AppColors.gold,
+      onSecondary: AppColors.ink,
       secondaryContainer: AppColors.primary4,
       onSecondaryContainer: AppColors.ink,
       tertiary: AppColors.mint,
-      onTertiary: AppColors.ink,
-      tertiaryContainer: Color(0xFFDDEFE3),
+      onTertiary: AppColors.white,
+      tertiaryContainer: Color(0xFFDCEEFF),
       onTertiaryContainer: AppColors.ink,
       error: AppColors.errorRed,
       onError: AppColors.white,
@@ -56,7 +61,7 @@ class AppTheme {
       colorScheme: scheme,
       scaffoldBackgroundColor: AppColors.cream,
       fontFamily: 'Arial',
-      splashColor: AppColors.sunshine.withAlpha(60),
+      splashColor: AppColors.gold.withAlpha(55),
       appBarTheme: const AppBarTheme(
         backgroundColor: AppColors.cream,
         foregroundColor: AppColors.ink,
@@ -111,7 +116,7 @@ class AppTheme {
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          backgroundColor: AppColors.ink,
+          backgroundColor: AppColors.blue,
           foregroundColor: AppColors.white,
           minimumSize: const Size(0, 50),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
@@ -125,9 +130,9 @@ class AppTheme {
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.ink,
+          foregroundColor: AppColors.blueDeep,
           minimumSize: const Size(0, 50),
-          side: const BorderSide(color: AppColors.ink, width: 1.5),
+          side: const BorderSide(color: AppColors.blue, width: 1.5),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           shape: const StadiumBorder(),
           textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
@@ -135,7 +140,7 @@ class AppTheme {
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: AppColors.ink,
+          foregroundColor: AppColors.blueDeep,
           textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
         ),
       ),
