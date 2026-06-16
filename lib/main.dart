@@ -6,9 +6,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'theme.dart';
 
-const supabaseUrl = 'https://txxdmukggvahnfrcktfk.supabase.co';
-const supabaseAnonKey =
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR4eGRtdWtnZ3ZhaG5mcmNrdGZrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE0OTkzNjQsImV4cCI6MjA5NzA3NTM2NH0.PJj65bbdrZ9KqKwj-ctYIty2aHaMcJ3PETOoRJMvDHI';
+const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
+const supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
 const authEmailDomain = 'users.cscquiz.app';
 const appName = 'SibilPrep';
 const appLogoAsset = 'assets/brand/sibilprep-logo.png';
@@ -135,6 +134,43 @@ class AppUser {
   final AccountStatus status;
   final String? email;
   final DateTime createdAt;
+}
+
+class RegistrationRequest {
+  const RegistrationRequest({
+    required this.id,
+    required this.fullName,
+    required this.username,
+    required this.status,
+    required this.requestedAt,
+    this.approvalCode,
+    this.reviewedAt,
+  });
+
+  final int id;
+  final String fullName;
+  final String username;
+  final String status;
+  final String? approvalCode;
+  final DateTime requestedAt;
+  final DateTime? reviewedAt;
+
+  bool get isPending => status == 'pending';
+  bool get isApproved => status == 'approved';
+  bool get hasApprovalCode =>
+      approvalCode != null && approvalCode!.trim().isNotEmpty;
+}
+
+class RegistrationResponse {
+  const RegistrationResponse({
+    required this.success,
+    required this.message,
+    this.accountCreated = false,
+  });
+
+  final bool success;
+  final String message;
+  final bool accountCreated;
 }
 
 class ExamType {
@@ -331,6 +367,7 @@ class AppStore extends ChangeNotifier {
   final List<ExamSubArea> examSubAreas = [];
   final List<Question> questions = [];
   final List<QuizAttempt> attempts = [];
+  final List<RegistrationRequest> registrationRequests = [];
 
   int _nextUserId = 1;
   int _nextQuestionId = 1;
@@ -409,6 +446,7 @@ class AppStore extends ChangeNotifier {
     final authUser = _client.auth.currentUser;
     if (authUser == null) {
       users.clear();
+      registrationRequests.clear();
       attempts.clear();
       _currentUserId = null;
       return;
@@ -428,6 +466,16 @@ class AppStore extends ChangeNotifier {
     users
       ..clear()
       ..addAll(profileRows.map(_userFromRow));
+
+    final requestRows = profile.role == UserRole.admin
+        ? await _client
+              .from('registration_requests')
+              .select()
+              .order('requested_at', ascending: false)
+        : <Map<String, dynamic>>[];
+    registrationRequests
+      ..clear()
+      ..addAll(requestRows.map(_registrationRequestFromRow));
 
     if (profile.role != UserRole.admin &&
         profile.status != AccountStatus.approved) {
@@ -475,6 +523,19 @@ class AppStore extends ChangeNotifier {
       status: _accountStatus(row['status']),
       email: row['email'] as String?,
       createdAt: DateTime.parse(row['created_at'] as String),
+    );
+  }
+
+  RegistrationRequest _registrationRequestFromRow(Map<String, dynamic> row) {
+    final reviewedAt = row['reviewed_at'] as String?;
+    return RegistrationRequest(
+      id: _int(row['id']),
+      fullName: row['full_name'] as String,
+      username: row['username'] as String,
+      status: row['status'] as String,
+      approvalCode: row['approval_code'] as String?,
+      requestedAt: DateTime.parse(row['requested_at'] as String),
+      reviewedAt: reviewedAt == null ? null : DateTime.parse(reviewedAt),
     );
   }
 
@@ -834,64 +895,135 @@ class AppStore extends ChangeNotifier {
     }
   }
 
-  Future<String?> register({
+  Future<RegistrationResponse> register({
     required String fullName,
     required String username,
     required String password,
     required String confirmPassword,
+    required String approvalCode,
   }) async {
     final cleanName = fullName.trim();
     final cleanUsername = username.trim().toLowerCase();
+    final cleanApprovalCode = approvalCode.trim();
 
     if (cleanName.isEmpty ||
         cleanUsername.isEmpty ||
         password.isEmpty ||
         confirmPassword.isEmpty) {
-      return 'Please complete all fields.';
+      return const RegistrationResponse(
+        success: false,
+        message: 'Please complete all fields.',
+      );
     }
     if (!_validUsername(cleanUsername)) {
-      return 'Username may contain letters, numbers, dots, underscores, and hyphens only.';
+      return const RegistrationResponse(
+        success: false,
+        message:
+            'Username may contain letters, numbers, dots, underscores, and hyphens only.',
+      );
     }
     if (password != confirmPassword) {
-      return 'Passwords do not match.';
+      return const RegistrationResponse(
+        success: false,
+        message: 'Passwords do not match.',
+      );
     }
     if (password.length < 6) {
-      return 'Password must be at least 6 characters.';
+      return const RegistrationResponse(
+        success: false,
+        message: 'Password must be at least 6 characters.',
+      );
+    }
+    if (cleanApprovalCode.isNotEmpty &&
+        !RegExp(r'^[0-9]{6}$').hasMatch(cleanApprovalCode)) {
+      return const RegistrationResponse(
+        success: false,
+        message: 'Approval code must be 6 digits.',
+      );
     }
 
     try {
+      var codeForSignup = cleanApprovalCode;
+      if (codeForSignup.isEmpty) {
+        final generatedCode = await _client.rpc(
+          'request_registration',
+          params: {'p_full_name': cleanName, 'p_username': cleanUsername},
+        );
+        codeForSignup = (generatedCode as String?)?.trim() ?? '';
+        if (codeForSignup.isEmpty) {
+          return const RegistrationResponse(
+            success: true,
+            message:
+                'Approval request submitted. Ask an administrator to approve it, then return here with the 6-digit code. Your password was not stored.',
+          );
+        }
+      }
+
       final response = await _client.auth.signUp(
         email: _authEmail(cleanUsername),
         password: password,
-        data: {'username': cleanUsername, 'full_name': cleanName},
+        data: {
+          'username': cleanUsername,
+          'full_name': cleanName,
+          'approval_code': codeForSignup,
+        },
       );
       if (response.session != null) {
         await _client.auth.signOut();
-        return null;
+        return const RegistrationResponse(
+          success: true,
+          accountCreated: true,
+          message: 'Account created. You can log in now.',
+        );
       }
 
-      return 'Account created, but Supabase email confirmation is enabled. Disable Confirm email in Authentication > Sign In / Providers > Email, delete this pending user, then register again.';
+      return const RegistrationResponse(
+        success: false,
+        message:
+            'Account created, but Supabase email confirmation is enabled. Disable Confirm email in Authentication > Sign In / Providers > Email, delete this pending user, then register again.',
+      );
     } on AuthException catch (error) {
       if (error.code == 'over_email_send_rate_limit' ||
           error.message.toLowerCase().contains('email rate limit')) {
-        return 'Supabase email limit reached. Disable Confirm email in Authentication > Sign In / Providers > Email, then wait for the temporary limit to reset before registering again.';
+        return const RegistrationResponse(
+          success: false,
+          message:
+              'Supabase email limit reached. Disable Confirm email in Authentication > Sign In / Providers > Email, then wait for the temporary limit to reset before registering again.',
+        );
       }
       if (error.code == 'user_already_exists' || error.code == 'email_exists') {
-        return 'That username is already registered.';
+        return const RegistrationResponse(
+          success: false,
+          message: 'That username is already registered.',
+        );
       }
       if (error.message.toLowerCase().contains('database error')) {
-        return 'Registration could not be completed. Check that the username is available and the profile trigger is installed.';
+        return const RegistrationResponse(
+          success: false,
+          message:
+              'Registration could not be completed. Check that the username matches an approved request and the 6-digit code is correct.',
+        );
       }
-      return error.message;
+      return RegistrationResponse(success: false, message: error.message);
     } on PostgrestException catch (error) {
-      return error.message;
+      return RegistrationResponse(success: false, message: error.message);
     }
   }
 
-  Future<void> setProfileStatus(int userId, AccountStatus status) async {
+  Future<String> approveRegistrationRequest(int requestId) async {
+    final code = await _client.rpc(
+      'approve_registration',
+      params: {'p_request_id': requestId},
+    );
+    await _loadSessionData();
+    notifyListeners();
+    return code as String;
+  }
+
+  Future<void> declineRegistrationRequest(int requestId) async {
     await _client.rpc(
-      'set_profile_status',
-      params: {'p_profile_id': userId, 'p_status': status.name},
+      'decline_registration',
+      params: {'p_request_id': requestId},
     );
     await _loadSessionData();
     notifyListeners();
@@ -1604,6 +1736,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _username = TextEditingController();
   final _password = TextEditingController();
   final _confirmPassword = TextEditingController();
+  final _approvalCode = TextEditingController();
   String? _message;
   bool _isError = false;
   bool _isSubmitting = false;
@@ -1614,6 +1747,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _username.dispose();
     _password.dispose();
     _confirmPassword.dispose();
+    _approvalCode.dispose();
     super.dispose();
   }
 
@@ -1626,25 +1760,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     try {
       final store = AppScope.of(context);
-      final error = await store.register(
+      final response = await store.register(
         fullName: _fullName.text,
         username: _username.text,
         password: _password.text,
         confirmPassword: _confirmPassword.text,
+        approvalCode: _approvalCode.text,
       );
       if (!mounted) return;
-      if (error != null) {
-        setState(() {
-          _message = error;
-          _isError = true;
-        });
-        return;
-      }
       _password.clear();
       _confirmPassword.clear();
+      if (response.accountCreated) {
+        _approvalCode.clear();
+      }
       setState(() {
-        _message = 'Your account is pending admin approval.';
-        _isError = false;
+        _message = response.message;
+        _isError = !response.success;
       });
     } finally {
       if (mounted) {
@@ -1671,7 +1802,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 borderRadius: BorderRadius.circular(18),
               ),
               child: Text(
-                'Create your account now. An administrator must approve it before you can access the quiz dashboard.',
+                'Submit without a code to request approval. If an administrator already gave you a 6-digit code, enter it here to finish creating your account.',
                 style: const TextStyle(
                   color: AppColors.ink,
                   fontWeight: FontWeight.w600,
@@ -1713,10 +1844,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   : null,
               onFieldSubmitted: (_) => _submit(),
             ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _approvalCode,
+              decoration: const InputDecoration(
+                labelText: 'Approval Code Optional',
+              ),
+              keyboardType: TextInputType.number,
+              validator: (value) {
+                final code = value?.trim() ?? '';
+                if (code.isEmpty) return null;
+                return RegExp(r'^[0-9]{6}$').hasMatch(code)
+                    ? null
+                    : 'Approval code must be 6 digits.';
+              },
+              onFieldSubmitted: (_) => _submit(),
+            ),
             const SizedBox(height: 18),
             FilledButton(
               onPressed: _isSubmitting ? null : _submit,
-              child: Text(_isSubmitting ? 'Please wait...' : 'Create account'),
+              child: Text(_isSubmitting ? 'Please wait...' : 'Continue'),
             ),
             TextButton(
               onPressed: () => Navigator.pushReplacement(
@@ -2812,14 +2959,19 @@ class AnalyticsScreen extends StatelessWidget {
 class AdminDashboardScreen extends StatelessWidget {
   const AdminDashboardScreen({super.key});
 
-  Future<void> _approve(BuildContext context, AppUser user) async {
+  Future<void> _approve(
+    BuildContext context,
+    RegistrationRequest request,
+  ) async {
     try {
-      await AppScope.of(
+      final code = await AppScope.of(
         context,
-      ).setProfileStatus(user.id, AccountStatus.approved);
+      ).approveRegistrationRequest(request.id);
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${user.fullName} has been approved.')),
+        SnackBar(
+          content: Text('${request.fullName} has been approved. Code: $code'),
+        ),
       );
     } catch (error) {
       if (!context.mounted) return;
@@ -2829,12 +2981,17 @@ class AdminDashboardScreen extends StatelessWidget {
     }
   }
 
-  Future<void> _reject(BuildContext context, AppUser user) async {
+  Future<void> _reject(
+    BuildContext context,
+    RegistrationRequest request,
+  ) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Reject account?'),
-        content: Text('${user.fullName} will not be able to access quizzes.'),
+        content: Text(
+          '${request.fullName} will not be able to complete registration.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
@@ -2850,12 +3007,10 @@ class AdminDashboardScreen extends StatelessWidget {
     if (confirmed != true || !context.mounted) return;
 
     try {
-      await AppScope.of(
-        context,
-      ).setProfileStatus(user.id, AccountStatus.rejected);
+      await AppScope.of(context).declineRegistrationRequest(request.id);
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${user.fullName} has been rejected.')),
+        SnackBar(content: Text('${request.fullName} has been declined.')),
       );
     } catch (error) {
       if (!context.mounted) return;
@@ -2875,14 +3030,10 @@ class AdminDashboardScreen extends StatelessWidget {
     final totalAttempts = store.attempts.length;
     final byType = store.questionCountByExamType();
     final byArea = store.questionCountByArea();
-    final pendingUsers = store.users
-        .where(
-          (user) =>
-              user.role == UserRole.user &&
-              user.status == AccountStatus.pending,
-        )
+    final pendingRequests = store.registrationRequests
+        .where((request) => request.isPending || request.isApproved)
         .toList();
-    final pendingUserCount = pendingUsers.length;
+    final pendingRequestCount = pendingRequests.length;
 
     return AppScaffold(
       title: 'Admin Dashboard',
@@ -2946,26 +3097,28 @@ class AdminDashboardScreen extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          'Pending Users',
+                          'Registration Requests',
                           style: Theme.of(context).textTheme.titleLarge,
                         ),
                       ),
-                      Chip(label: Text('$pendingUserCount pending')),
+                      Chip(label: Text('$pendingRequestCount open')),
                     ],
                   ),
                   const SizedBox(height: 6),
                   const Text(
-                    'Approve pending users to unlock the quiz dashboard, or reject accounts that should not have access.',
+                    'Approve pending requests and share the generated 6-digit code so users can finish registration.',
                   ),
                   const SizedBox(height: 14),
-                  if (pendingUsers.isEmpty)
-                    const Text('No pending users yet.')
+                  if (pendingRequests.isEmpty)
+                    const Text('No pending registration requests yet.')
                   else
-                    ...pendingUsers.map(
-                      (user) => _PendingUserTile(
-                        user: user,
-                        onApprove: () => _approve(context, user),
-                        onReject: () => _reject(context, user),
+                    ...pendingRequests.map(
+                      (request) => _RegistrationRequestTile(
+                        request: request,
+                        onApprove: request.isPending
+                            ? () => _approve(context, request)
+                            : null,
+                        onDecline: () => _reject(context, request),
                       ),
                     ),
                 ],
@@ -4146,12 +4299,16 @@ class _MessageBox extends StatelessWidget {
   }
 }
 
-class _PendingUserTile extends StatelessWidget {
-  const _PendingUserTile({required this.user, this.onApprove, this.onReject});
+class _RegistrationRequestTile extends StatelessWidget {
+  const _RegistrationRequestTile({
+    required this.request,
+    this.onApprove,
+    this.onDecline,
+  });
 
-  final AppUser user;
+  final RegistrationRequest request;
   final VoidCallback? onApprove;
-  final VoidCallback? onReject;
+  final VoidCallback? onDecline;
 
   @override
   Widget build(BuildContext context) {
@@ -4179,17 +4336,19 @@ class _PendingUserTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  user.fullName,
+                  request.fullName,
                   style: const TextStyle(fontWeight: FontWeight.w900),
                 ),
                 Text(
-                  '@${user.username} - ${formatDateTime(user.createdAt)}',
+                  '@${request.username} - ${formatDateTime(request.requestedAt)}',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
-                if (user.email != null)
+                if (request.hasApprovalCode)
                   SelectableText(
-                    user.email!,
-                    style: Theme.of(context).textTheme.bodySmall,
+                    'Code: ${request.approvalCode}',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
               ],
             ),
@@ -4200,9 +4359,9 @@ class _PendingUserTile extends StatelessWidget {
               color: AppColors.sunshine,
               borderRadius: BorderRadius.circular(50),
             ),
-            child: const Text(
-              'Pending',
-              style: TextStyle(
+            child: Text(
+              request.isApproved ? 'Approved' : 'Pending',
+              style: const TextStyle(
                 color: AppColors.ink,
                 fontSize: 11,
                 fontWeight: FontWeight.w900,
@@ -4215,11 +4374,11 @@ class _PendingUserTile extends StatelessWidget {
               icon: const Icon(Icons.check_rounded),
               label: const Text('Approve'),
             ),
-          if (onReject != null)
+          if (onDecline != null)
             OutlinedButton.icon(
-              onPressed: onReject,
+              onPressed: onDecline,
               icon: const Icon(Icons.close_rounded),
-              label: const Text('Reject'),
+              label: const Text('Decline'),
             ),
         ],
       ),
