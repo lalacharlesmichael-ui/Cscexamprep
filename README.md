@@ -6,8 +6,8 @@ Flutter Civil Service exam preparation quiz app backed by Supabase.
 
 1. Create a Supabase project.
 2. In **Authentication > Providers > Email**, disable **Confirm email**. The app turns usernames into internal `@users.cscquiz.app` auth addresses, so users cannot receive confirmation emails.
-3. Open the Supabase SQL Editor and run [`supabase/schema.sql`](supabase/schema.sql). Re-run this file after pulling schema changes. It creates the tables, Row Level Security policies, approval functions, profile trigger, exam catalog, starter questions, and question-integrity guardrails.
-4. Start the app with your Supabase project URL and public anon key:
+3. Open the Supabase SQL Editor and run [`supabase/schema.sql`](supabase/schema.sql). Re-run this file after pulling schema changes. It creates the tables, Row Level Security policies, profile trigger, admin approval function, exam catalog, starter questions, and question-integrity guardrails.
+4. The app includes the current public Supabase URL and anon key as a fallback. You can override them locally with dart defines:
 
 ```powershell
 C:\flutter\bin\flutter.bat run `
@@ -17,14 +17,9 @@ C:\flutter\bin\flutter.bat run `
 
 Use only the public publishable/anon key in the Flutter app. Never put the Supabase service-role key in client code.
 
-The first registration request after applying the schema receives a bootstrap approval code and becomes the administrator. Every later user must:
+The first account created after applying the schema becomes the administrator automatically. Every later user can create an account normally, then waits for an administrator to approve it from the Admin Dashboard.
 
-1. Submit an approval request from the registration screen.
-2. Wait for an administrator to accept the request.
-3. Get the generated 6-digit code from the administrator.
-4. Use that code, the same username, and a new password to complete registration.
-
-Pending requests never store user passwords. Users submit an approval request first, then return to the registration screen with the administrator's 6-digit code to create the Auth account.
+Pending users cannot access the quiz dashboard until an administrator approves them. Administrators can also reject accounts that should not have access.
 
 ## Question import safety
 
@@ -44,7 +39,7 @@ alter table public.questions validate constraint questions_sub_area_matches_area
 
 ## Vercel deployment
 
-In Vercel, add these Environment Variables for Production, Preview, and Development:
+In Vercel, these Environment Variables are optional because the app has public fallback values. Add them for Production, Preview, and Development if you want to override the defaults:
 
 - `SUPABASE_URL`
 - `SUPABASE_ANON_KEY`
@@ -96,7 +91,7 @@ where username = 'cmkhel';
 ## Included features
 
 - Supabase Auth username-based login and registration
-- Administrator approval and one-time code for new registrations
+- Administrator approval or rejection for new registrations
 - Professional and Sub-Professional quiz levels
 - Overall, area, and specific-topic quizzes
 - Timed questions, result review, and progress analytics

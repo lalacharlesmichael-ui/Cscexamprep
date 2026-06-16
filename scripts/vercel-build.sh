@@ -6,11 +6,15 @@ if ! command -v flutter >/dev/null 2>&1; then
   export PATH="$HOME/flutter/bin:$PATH"
 fi
 
-: "${SUPABASE_URL:?Set SUPABASE_URL in Vercel Environment Variables}"
-: "${SUPABASE_ANON_KEY:?Set SUPABASE_ANON_KEY in Vercel Environment Variables}"
-
 flutter config --enable-web
 flutter pub get
-flutter build web --release --base-href / \
-  --dart-define=SUPABASE_URL="$SUPABASE_URL" \
-  --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
+
+build_args=(web --release --base-href /)
+if [[ -n "${SUPABASE_URL:-}" ]]; then
+  build_args+=(--dart-define=SUPABASE_URL="$SUPABASE_URL")
+fi
+if [[ -n "${SUPABASE_ANON_KEY:-}" ]]; then
+  build_args+=(--dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY")
+fi
+
+flutter build "${build_args[@]}"
